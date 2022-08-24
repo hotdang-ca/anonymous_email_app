@@ -1,0 +1,11 @@
+version: "2"
+services:
+  smtp-serv:
+    restart: always 
+    
+    build:
+       context: .
+
+    container_name: smtp-serv
+    ports:
+       - "25:25"
