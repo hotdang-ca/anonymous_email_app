@@ -1,0 +1,1 @@
+module.exports = "Model for storing username and password";

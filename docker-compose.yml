@@ -1,0 +1,133 @@
+version: '3.8'
+
+services:
+  ember:
+    build: ./ember
+    image: "email_ember"
+    volumes:
+      - ember-data:/var/www/site
+      - ember-apache:/etc/apache2/sites-enabled
+    tmpfs:
+      - /var/www/site/tmp
+      - /var/www/site/dist
+#   ports:
+#     - "8080:80"
+  mongo:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: application
+    ports:
+      - 27017:27017
+    expose:
+      - 27017
+    volumes:
+      - mongo-config:/docker-entrypoint-initdb.d:ro
+      - mongo-data:/data/db
+
+  express:
+    image: mongo-express
+    depends_on:
+      - mongo
+    restart: always
+    ports:
+      - 9090:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: application
+      ME_CONFIG_MONGODB_URL: mongodb://root:application@mongo/
+  fortune:
+    image: node
+    restart: always
+    depends_on:
+      - mongo
+    working_dir: /app
+    volumes:
+      - node-data:/app
+    expose:
+      - 9000
+    ports:
+      - 9000:9000
+    command: "node -r dotenv/config fortune.js"
+  jsonapi:
+    image: node
+    restart: always
+    depends_on:
+      - mongo
+    working_dir: /app
+    volumes:
+      - node-data:/app
+    expose:
+      - 9010
+    ports:
+      - 9010:9010
+    command: "node -r dotenv/config jsonapi.js"
+  oauth2:
+    image: node
+    restart: always
+    depends_on:
+      - mongo
+    working_dir: /app
+    volumes:
+      - node-data:/app
+    expose:
+      - 9020
+    ports:
+      - 9020:9020
+    command: "node -r dotenv/config oauth2.js"
+
+  proxy:
+    build: ./proxy
+    image: "email_proxy"
+    volumes:
+      - proxy-letsencrypt:/etc/letsencrypt
+      - proxy-apache:/etc/apache2/sites-enabled
+    ports:
+      - "80:80"
+      - "443:443"
+    deploy:
+      replicas: 5 #enable in prod
+volumes:
+  ember-data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/ember
+      o: bind
+  ember-apache:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/ember/apache/sites-enabled
+      o: bind
+  proxy-letsencrypt:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/proxy/letsencrypt
+      o: bind
+  proxy-apache:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/proxy/apache/sites-enabled
+      o: bind
+  node-data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/node
+      o: bind
+  mongo-config:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/mongo/config
+      o: bind
+  mongo-data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/mongo/data/db
+      o: bind
